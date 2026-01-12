@@ -1,4 +1,4 @@
-import { Router, type Response } from "express"
+import { Router, type Request, type Response } from "express"
 import { z } from "zod"
 import mongoose from "mongoose"
 import { Gig } from "../models/Gig.js"
@@ -36,7 +36,7 @@ const createBidSchema = z.object({
 })
 
 // Get all gigs with filtering
-router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
     const { category, minBudget, maxBudget, status = "open", search, page = "1", limit = "10" } = req.query
 
@@ -77,7 +77,7 @@ router.get("/", async (req: AuthRequest, res: Response): Promise<void> => {
 })
 
 // Get single gig
-router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const gig = await Gig.findById(req.params.id)
       .populate("postedBy", "name email")
@@ -99,13 +99,14 @@ router.get("/:id", async (req: AuthRequest, res: Response): Promise<void> => {
 })
 
 // Create gig
-router.post("/", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const authReq = req as AuthRequest
     const data = createGigSchema.parse(req.body)
 
     const gig = await Gig.create({
       ...data,
-      postedBy: req.user!._id,
+      postedBy: authReq.user!._id,
     })
 
     await gig.populate("postedBy", "name email")
@@ -122,8 +123,9 @@ router.post("/", authenticate, async (req: AuthRequest, res: Response): Promise<
 })
 
 // Update gig
-router.put("/:id", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.put("/:id", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const authReq = req as AuthRequest
     const data = updateGigSchema.parse(req.body)
 
     const gig = await Gig.findById(req.params.id)
@@ -133,7 +135,7 @@ router.put("/:id", authenticate, async (req: AuthRequest, res: Response): Promis
       return
     }
 
-    if (gig.postedBy.toString() !== req.user!._id.toString()) {
+    if (gig.postedBy.toString() !== authReq.user!._id.toString()) {
       res.status(403).json({ message: "Not authorized to update this gig" })
       return
     }
@@ -159,8 +161,9 @@ router.put("/:id", authenticate, async (req: AuthRequest, res: Response): Promis
 })
 
 // Delete gig
-router.delete("/:id", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.delete("/:id", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const authReq = req as AuthRequest
     const gig = await Gig.findById(req.params.id)
 
     if (!gig) {
@@ -168,7 +171,7 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res: Response): Pro
       return
     }
 
-    if (gig.postedBy.toString() !== req.user!._id.toString()) {
+    if (gig.postedBy.toString() !== authReq.user!._id.toString()) {
       res.status(403).json({ message: "Not authorized to delete this gig" })
       return
     }
@@ -190,8 +193,9 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res: Response): Pro
 })
 
 // Place bid on gig
-router.post("/:gigId/bids", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/:gigId/bids", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
+    const authReq = req as AuthRequest
     const data = createBidSchema.parse(req.body)
     const gigId = req.params.gigId
 
@@ -208,7 +212,7 @@ router.post("/:gigId/bids", authenticate, async (req: AuthRequest, res: Response
     }
 
     // Check if user is the gig owner
-    if (gig.postedBy._id.toString() === req.user!._id.toString()) {
+    if (gig.postedBy._id.toString() === authReq.user!._id.toString()) {
       res.status(403).json({ message: "Cannot bid on your own gig" })
       return
     }
@@ -216,7 +220,7 @@ router.post("/:gigId/bids", authenticate, async (req: AuthRequest, res: Response
     // Check for existing bid
     const existingBid = await Bid.findOne({
       gig: gigId,
-      bidder: req.user!._id,
+      bidder: authReq.user!._id,
     })
 
     if (existingBid) {
@@ -227,7 +231,7 @@ router.post("/:gigId/bids", authenticate, async (req: AuthRequest, res: Response
     const bid = await Bid.create({
       ...data,
       gig: gigId,
-      bidder: req.user!._id,
+      bidder: authReq.user!._id,
     })
 
     await bid.populate("bidder", "name email")
@@ -247,7 +251,7 @@ router.post("/:gigId/bids", authenticate, async (req: AuthRequest, res: Response
       bidId: bid._id,
       gigId,
       amount: bid.amount,
-      bidder: { name: req.user!.name },
+      bidder: { name: authReq.user!.name },
     })
 
     res.status(201).json({ bid })
@@ -266,7 +270,7 @@ router.post("/:gigId/bids", authenticate, async (req: AuthRequest, res: Response
 })
 
 // Get bids for a gig
-router.get("/:gigId/bids", async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/:gigId/bids", async (req: Request, res: Response): Promise<void> => {
   try {
     const bids = await Bid.find({ gig: req.params.gigId }).populate("bidder", "name email").sort({ createdAt: -1 })
 
@@ -278,12 +282,13 @@ router.get("/:gigId/bids", async (req: AuthRequest, res: Response): Promise<void
 })
 
 // Accept bid (with transaction for atomicity - BONUS FEATURE)
-router.post("/:gigId/bids/:bidId/accept", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/:gigId/bids/:bidId/accept", authenticate, async (req: Request, res: Response): Promise<void> => {
   const session = await mongoose.startSession()
 
   try {
     session.startTransaction()
 
+    const authReq = req as AuthRequest
     const { gigId, bidId } = req.params
 
     const gig = await Gig.findById(gigId).session(session)
@@ -294,7 +299,7 @@ router.post("/:gigId/bids/:bidId/accept", authenticate, async (req: AuthRequest,
       return
     }
 
-    if (gig.postedBy.toString() !== req.user!._id.toString()) {
+    if (gig.postedBy.toString() !== authReq.user!._id.toString()) {
       await session.abortTransaction()
       res.status(403).json({ message: "Only the gig owner can accept bids" })
       return

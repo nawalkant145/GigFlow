@@ -1,4 +1,4 @@
-import { Router, type Response } from "express"
+import { Router, type Request, type Response } from "express"
 import { Gig } from "../models/Gig.js"
 import { Bid } from "../models/Bid.js"
 import { Notification } from "../models/Notification.js"
@@ -8,9 +8,10 @@ import { markNotificationAsRead, markAllNotificationsAsRead } from "../services/
 const router = Router()
 
 // Get current user's posted gigs
-router.get("/me/gigs", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/me/gigs", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const gigs = await Gig.find({ postedBy: req.user!._id })
+    const authReq = req as AuthRequest
+    const gigs = await Gig.find({ postedBy: authReq.user!._id })
       .populate("hiredFreelancer", "name email")
       .sort({ createdAt: -1 })
 
@@ -22,9 +23,10 @@ router.get("/me/gigs", authenticate, async (req: AuthRequest, res: Response): Pr
 })
 
 // Get current user's bids
-router.get("/me/bids", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/me/bids", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const bids = await Bid.find({ bidder: req.user!._id })
+    const authReq = req as AuthRequest
+    const bids = await Bid.find({ bidder: authReq.user!._id })
       .populate({
         path: "gig",
         select: "title status budget deadline postedBy",
@@ -40,12 +42,13 @@ router.get("/me/bids", authenticate, async (req: AuthRequest, res: Response): Pr
 })
 
 // Get user's notifications
-router.get("/me/notifications", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get("/me/notifications", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const notifications = await Notification.find({ user: req.user!._id }).sort({ createdAt: -1 }).limit(50)
+    const authReq = req as AuthRequest
+    const notifications = await Notification.find({ user: authReq.user!._id }).sort({ createdAt: -1 }).limit(50)
 
     const unreadCount = await Notification.countDocuments({
-      user: req.user!._id,
+      user: authReq.user!._id,
       read: false,
     })
 
@@ -57,9 +60,10 @@ router.get("/me/notifications", authenticate, async (req: AuthRequest, res: Resp
 })
 
 // Mark notification as read
-router.patch("/me/notifications/:id/read", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch("/me/notifications/:id/read", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    const notification = await markNotificationAsRead(req.params.id, req.user!._id.toString())
+    const authReq = req as AuthRequest
+    const notification = await markNotificationAsRead(req.params.id, authReq.user!._id.toString())
 
     if (!notification) {
       res.status(404).json({ message: "Notification not found" })
@@ -74,9 +78,10 @@ router.patch("/me/notifications/:id/read", authenticate, async (req: AuthRequest
 })
 
 // Mark all notifications as read
-router.patch("/me/notifications/read-all", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch("/me/notifications/read-all", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    await markAllNotificationsAsRead(req.user!._id.toString())
+    const authReq = req as AuthRequest
+    await markAllNotificationsAsRead(authReq.user!._id.toString())
     res.json({ message: "All notifications marked as read" })
   } catch (error) {
     console.error("Mark all notifications read error:", error)

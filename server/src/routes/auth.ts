@@ -141,11 +141,12 @@ router.post("/refresh", async (req: Request, res: Response): Promise<void> => {
 })
 
 // Logout
-router.post("/logout", authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post("/logout", authenticate, async (req: Request, res: Response): Promise<void> => {
   try {
-    if (req.user) {
-      req.user.refreshToken = undefined
-      await req.user.save()
+    const authReq = req as AuthRequest
+    if (authReq.user) {
+      authReq.user.refreshToken = undefined
+      await authReq.user.save()
     }
 
     res.clearCookie("refreshToken")
@@ -157,17 +158,18 @@ router.post("/logout", authenticate, async (req: AuthRequest, res: Response): Pr
 })
 
 // Get current user
-router.get("/me", authenticate, (req: AuthRequest, res: Response): void => {
-  if (!req.user) {
+router.get("/me", authenticate, (req: Request, res: Response): void => {
+  const authReq = req as AuthRequest
+  if (!authReq.user) {
     res.status(401).json({ message: "Not authenticated" })
     return
   }
 
   res.json({
     user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
+      id: authReq.user._id,
+      name: authReq.user.name,
+      email: authReq.user.email,
     },
   })
 })
