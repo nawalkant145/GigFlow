@@ -1,4 +1,4 @@
-import express from "express"
+import express, { type Request, type Response } from "express"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import { createServer } from "http"
@@ -43,7 +43,7 @@ app.use("/api/gigs", gigRoutes)
 app.use("/api/users", userRoutes)
 
 // Health check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok" })
 })
 
