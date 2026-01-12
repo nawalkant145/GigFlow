@@ -6,6 +6,13 @@ import { authenticate, type AuthRequest } from "../middleware/auth.js"
 
 const router = Router()
 
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: (process.env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+})
+
 // Validation schemas
 const registerSchema = z.object({
   name: z.string().min(2).max(50),
@@ -34,17 +41,10 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
     const accessToken = generateAccessToken(user)
     const refreshToken = generateRefreshToken(user)
 
-    // Store refresh token
     user.refreshToken = refreshToken
     await user.save()
 
-    // Set refresh token in HTTP-only cookie
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    })
+    res.cookie("refreshToken", refreshToken, getCookieOptions())
 
     res.status(201).json({
       user: {
@@ -87,12 +87,7 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
     user.refreshToken = refreshToken
     await user.save()
 
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    })
+    res.cookie("refreshToken", refreshToken, getCookieOptions())
 
     res.json({
       user: {
@@ -136,12 +131,7 @@ router.post("/refresh", async (req: Request, res: Response): Promise<void> => {
     user.refreshToken = newRefreshToken
     await user.save()
 
-    res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    })
+    res.cookie("refreshToken", newRefreshToken, getCookieOptions())
 
     res.json({ accessToken: newAccessToken })
   } catch (error) {
