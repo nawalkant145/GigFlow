@@ -1,0 +1,3 @@
+module.exports=[84181,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(65717);a.n(d("[project]/OneDrive/Desktop/GigFlow/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},54658,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(65717);a.n(d("[project]/OneDrive/Desktop/GigFlow/node_modules/next/dist/client/components/builtin/global-error.js"))},58073,a=>{"use strict";a.i(84181);var b=a.i(54658);a.n(b)}];
+
+//# sourceMappingURL=2d457_next_dist_client_components_builtin_global-error_bf9efc92.js.map
