@@ -50,7 +50,7 @@ dotenv.config()
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://gig-flow-psi.vercel.app",
+  "https://gig-flow-chi.vercel.app",
 ]
 
 const app = express()
