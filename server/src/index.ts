@@ -11,41 +11,82 @@ import gigRoutes from "./routes/gigs.js"
 import userRoutes from "./routes/users.js"
 import { setupSocket } from "./socket/index.js"
 
+// dotenv.config()
+
+// const app = express()
+// const httpServer = createServer(app)
+
+// // Socket.io setup
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: process.env.CLIENT_URL || "http://localhost:5173",
+//     credentials: true,
+//   },
+// })
+
+// // Make io accessible to routes
+// app.set("io", io)
+
+// // Middleware
+// app.use(
+//   cors({
+//     origin: process.env.CLIENT_URL || "http://localhost:5173",
+//     credentials: true,
+//   }),
+// )
+// app.use(express.json())
+// app.use(cookieParser())
+
+// // Routes
+// app.use("/api/auth", authRoutes)
+// app.use("/api/gigs", gigRoutes)
+// app.use("/api/users", userRoutes)
+
+// // Health check
+// app.get("/api/health", (req: Request, res: Response) => {
+//   res.json({ status: "ok" })
+// })
 dotenv.config()
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://gig-flow-psi.vercel.app",
+]
 
 const app = express()
 const httpServer = createServer(app)
 
-// Socket.io setup
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   },
 })
 
-// Make io accessible to routes
 app.set("io", io)
 
-// Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (allowedOrigins.includes(origin)) return callback(null, true)
+      callback(new Error("Not allowed by CORS"))
+    },
     credentials: true,
   }),
 )
+
 app.use(express.json())
 app.use(cookieParser())
 
-// Routes
 app.use("/api/auth", authRoutes)
 app.use("/api/gigs", gigRoutes)
 app.use("/api/users", userRoutes)
 
-// Health check
-app.get("/api/health", (req: Request, res: Response) => {
+app.get("/api/health", (req, res) => {
   res.json({ status: "ok" })
 })
+
 
 // Setup Socket.io
 setupSocket(io)
